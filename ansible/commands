@@ -1,0 +1,161 @@
+sudha@sudhaubuntuvm:~/ansible$ nslookup awsserver
+Server:		127.0.0.53
+Address:	127.0.0.53#53
+
+Non-authoritative answer:
+Name:	awsserver
+Address: 34.236.72.3
+sudha@sudhaubuntuvm:~/ansible$ ansible webservers -m ping
+awsserver | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "dpkg-query -W apache2" webservers
+awsserver | FAILED | rc=1 >>
+dpkg-query: no packages found matching apache2non-zero return code
+
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "ls -lrt /var/www/html" webservers
+awsserver | SUCCESS | rc=0 >>
+total 0
+
+sudha@sudhaubuntuvm:~/ansible$ ansible-playbook playbook/install_apache2.yml 
+
+PLAY [webservers] ******************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [awsserver]
+
+TASK [Install/Update apache2 on AWS Server] ****************************************************************************************************************************
+changed: [awsserver]
+
+TASK [Start apache2 on AWS Server] *************************************************************************************************************************************
+ok: [awsserver]
+
+PLAY RECAP *************************************************************************************************************************************************************
+awsserver                  : ok=3    changed=1    unreachable=0    failed=0   
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "dpkg-query -W apache2" webservers
+awsserver | SUCCESS | rc=0 >>
+apache2	2.4.18-2ubuntu3.9
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "systemctl status apache2.service" webservers
+awsserver | SUCCESS | rc=0 >>
+● apache2.service - LSB: Apache2 web server
+   Loaded: loaded (/etc/init.d/apache2; bad; vendor preset: enabled)
+  Drop-In: /lib/systemd/system/apache2.service.d
+           └─apache2-systemd.conf
+   Active: active (running) since Sun 2018-09-16 03:34:57 UTC; 28s ago
+     Docs: man:systemd-sysv-generator(8)
+   CGroup: /system.slice/apache2.service
+           ├─21406 /usr/sbin/apache2 -k start
+           ├─21409 /usr/sbin/apache2 -k start
+           └─21410 /usr/sbin/apache2 -k start
+
+Sep 16 03:34:56 ip-172-31-89-236 systemd[1]: Starting LSB: Apache2 web server...
+Sep 16 03:34:56 ip-172-31-89-236 apache2[21382]:  * Starting Apache httpd web server apache2
+Sep 16 03:34:57 ip-172-31-89-236 apache2[21382]:  *
+Sep 16 03:34:57 ip-172-31-89-236 systemd[1]: Started LSB: Apache2 web server.
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible-playbook playbook/deploy.yml 
+
+PLAY [webservers] ******************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [awsserver]
+
+TASK [Check if apache2 service is running on AWS Server, else start it.] ***********************************************************************************************
+ok: [awsserver]
+
+TASK [Copy local index.html file to AWS Server /var/www/html directory.] ***********************************************************************************************
+changed: [awsserver]
+
+PLAY RECAP *************************************************************************************************************************************************************
+awsserver                  : ok=3    changed=1    unreachable=0    failed=0   
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "cat /var/www/html/index.html" webservers
+awsserver | SUCCESS | rc=0 >>
+<html>
+      <header>
+	      <title>Welcome</title>
+      </header>
+      <body>Hello World!.</body>
+</html>
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible-playbook playbook/undeploy.yml 
+
+PLAY [webservers] ******************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [awsserver]
+
+TASK [Select all html files in the /var/www/html directory to delete.] *************************************************************************************************
+ok: [awsserver]
+
+TASK [Now cleanup selected html files.] ********************************************************************************************************************************
+changed: [awsserver] => (item={u'uid': 0, u'woth': False, u'mtime': 1537068975.0522532, u'inode': 773875, u'isgid': False, u'size': 109, u'roth': True, u'isuid': False, u'isreg': True, u'pw_name': u'root', u'gid': 0, u'ischr': False, u'wusr': False, u'xoth': True, u'rusr': True, u'nlink': 1, u'issock': False, u'rgrp': True, u'gr_name': u'root', u'path': u'/var/www/html/index.html', u'xusr': True, u'atime': 1537069011.4919498, u'isdir': False, u'ctime': 1537068976.8362384, u'wgrp': False, u'xgrp': True, u'dev': 51713, u'isblk': False, u'isfifo': False, u'mode': u'0555', u'islnk': False})
+
+TASK [Stop apache2 service on AWS Server] ******************************************************************************************************************************
+changed: [awsserver]
+
+RUNNING HANDLER [stop apache2] *****************************************************************************************************************************************
+ok: [awsserver]
+
+PLAY RECAP *************************************************************************************************************************************************************
+awsserver                  : ok=5    changed=2    unreachable=0    failed=0   
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "ls -lrt /var/www/html" webservers
+awsserver | SUCCESS | rc=0 >>
+total 0
+
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "systemctl status apache2.service" webservers
+awsserver | FAILED | rc=3 >>
+● apache2.service - LSB: Apache2 web server
+   Loaded: loaded (/etc/init.d/apache2; bad; vendor preset: enabled)
+  Drop-In: /lib/systemd/system/apache2.service.d
+           └─apache2-systemd.conf
+   Active: inactive (dead) since Sun 2018-09-16 03:38:08 UTC; 57s ago
+     Docs: man:systemd-sysv-generator(8)
+  Process: 21876 ExecStop=/etc/init.d/apache2 stop (code=exited, status=0/SUCCESS)
+
+Sep 16 03:34:56 ip-172-31-89-236 systemd[1]: Starting LSB: Apache2 web server...
+Sep 16 03:34:56 ip-172-31-89-236 apache2[21382]:  * Starting Apache httpd web server apache2
+Sep 16 03:34:57 ip-172-31-89-236 apache2[21382]:  *
+Sep 16 03:34:57 ip-172-31-89-236 systemd[1]: Started LSB: Apache2 web server.
+Sep 16 03:38:07 ip-172-31-89-236 systemd[1]: Stopping LSB: Apache2 web server...
+Sep 16 03:38:07 ip-172-31-89-236 apache2[21876]:  * Stopping Apache httpd web server apache2
+Sep 16 03:38:08 ip-172-31-89-236 apache2[21876]:  *
+Sep 16 03:38:08 ip-172-31-89-236 systemd[1]: Stopped LSB: Apache2 web server.non-zero return code
+
+sudha@sudhaubuntuvm:~/ansible$ ansible-playbook playbook/uninstall_apache2.yml 
+
+PLAY [webservers] ******************************************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [awsserver]
+
+TASK [Stop apache2 service on AWS Server if its running] ***************************************************************************************************************
+ok: [awsserver]
+
+TASK [Uninstall apache2 on AWS Server] *********************************************************************************************************************************
+changed: [awsserver]
+
+RUNNING HANDLER [uninstall apache2] ************************************************************************************************************************************
+changed: [awsserver]
+
+PLAY RECAP *************************************************************************************************************************************************************
+awsserver                  : ok=4    changed=2    unreachable=0    failed=0   
+
+sudha@sudhaubuntuvm:~/ansible$ 
+sudha@sudhaubuntuvm:~/ansible$ ansible -m command -a "dpkg-query -W apache2" webservers
+awsserver | FAILED | rc=1 >>
+dpkg-query: no packages found matching apache2non-zero return code
+
+

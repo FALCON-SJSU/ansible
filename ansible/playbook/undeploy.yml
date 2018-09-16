@@ -1,0 +1,25 @@
+---
+- hosts: webservers
+  become: true
+  tasks:
+
+    - name: Select all html files in the /var/www/html directory to delete.
+      find:
+        paths: /var/www/html
+        patterns: "*.html"
+      register: which_files_to_delete
+
+    - name: Now cleanup selected html files.
+      file:
+        path: "{{item.path}}"
+        state: absent
+      with_items: "{{which_files_to_delete.files}}"
+
+    - name: Stop apache2 service on AWS Server
+      service: name=apache2 state=stopped
+      notify: stop apache2
+
+  handlers:
+    - name: stop apache2
+      service: name=apache2 state=stopped
+...
